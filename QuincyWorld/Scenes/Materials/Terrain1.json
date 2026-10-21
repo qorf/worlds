@@ -1,0 +1,23 @@
+{
+    "Format": "Quorum Terrain Material", 
+    "Version": 1, 
+    "Name": "Terrain1", 
+    "Layers": [{
+        
+            "Name": "Grass001", 
+            "Material": "../../Textures/Grass001_1K-JPG/Grass001.json"
+        }, {
+        
+            "Name": "Ground037", 
+            "Material": "../../Textures/Ground037_1K-JPG/Ground037.json"
+        }, {
+        
+            "Name": "Rock030", 
+            "Material": "../../Textures/Rock030_1K-JPG/Rock030.json"
+        }, {
+        
+            "Name": "Gravel022", 
+            "Material": "../../Textures/Gravel022_1K-JPG/Gravel022.json"
+        }], 
+    "Blend Softness": 0.2
+}

@@ -7,10 +7,10 @@
             "Camera": {
                 "Class": "PerspectiveCamera", 
                 "Field of View": 67.0, 
-                "Position": [0.0, 7.0710678118654755, -7.071067811865475], 
-                "Direction": [0.0, -0.5144957304000854, 0.8574929237365723], 
+                "Position": [3.319384021440136, 153.79942424594552, -118.47649809690954], 
+                "Direction": [-0.015449682784973304, -0.8042541816822585, 0.594084605547429], 
                 "Up": [0.0, 0.8574929237365723, 0.5144957304000854], 
-                "Size": [2235.0, 729.1999999999999], 
+                "Size": [1401.0, 783.0999999999999], 
                 "Far": 1000.0, 
                 "Near": 1.0
             }, 
@@ -18,12 +18,14 @@
                 "Enabled": false
             }, 
             "Items": {
-                "3": {
+                "4": {
                     "Class": "Terrain", 
                     "Name": "Terrain", 
                     "Description": "Ground for the scene, made of height map regions. It starts flat, 128 by 128 units.", 
-                    "File": "Terrains/Terrain1/terrain.json", 
-                    "Physics Enabled": false, 
+                    "File": "Scenes/Terrains/Terrain1/terrain.json", 
+                    "Material": "Scenes/Materials/Terrain1.json", 
+                    "Physics Enabled": true, 
+                    "Collision": "Full", 
                     "Friction": 1.0
                 }
             }, 

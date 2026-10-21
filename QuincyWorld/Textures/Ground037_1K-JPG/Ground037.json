@@ -1,0 +1,12 @@
+{
+    "Format": "Quorum Material", 
+    "Version": 1, 
+    "Name": "Ground037", 
+    "Color Map": "Ground037_1K-JPG_Color.jpg", 
+    "Normal Map": "Ground037_1K-JPG_NormalGL.jpg", 
+    "Normal Map Convention": "OpenGL", 
+    "Roughness Map": "Ground037_1K-JPG_Roughness.jpg", 
+    "Ambient Occlusion Map": "Ground037_1K-JPG_AmbientOcclusion.jpg", 
+    "Height Map": "Ground037_1K-JPG_Displacement.jpg", 
+    "Tile Size": 3.0
+}

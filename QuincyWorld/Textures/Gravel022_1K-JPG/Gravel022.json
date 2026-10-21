@@ -1,0 +1,12 @@
+{
+    "Format": "Quorum Material", 
+    "Version": 1, 
+    "Name": "Gravel022", 
+    "Color Map": "Gravel022_1K-JPG_Color.jpg", 
+    "Normal Map": "Gravel022_1K-JPG_NormalGL.jpg", 
+    "Normal Map Convention": "OpenGL", 
+    "Roughness Map": "Gravel022_1K-JPG_Roughness.jpg", 
+    "Ambient Occlusion Map": "Gravel022_1K-JPG_AmbientOcclusion.jpg", 
+    "Height Map": "Gravel022_1K-JPG_Displacement.jpg", 
+    "Tile Size": 3.0
+}
