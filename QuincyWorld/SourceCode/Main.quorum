@@ -134,8 +134,8 @@ class Main is Game
     action Main
         UseVulkan(true)
         SetMultisampling3D(4)
-        SetScreenSize(2500, 1500)
-        //SetScreenSize(1250, 750)
+        //SetScreenSize(2500, 1500)
+        SetScreenSize(1250, 750)
         StartGame()
     end
 
@@ -367,7 +367,7 @@ class Main is Game
         names:Add("MetalRoughSpheres")
         names:Add("AlphaBlendModeTest")
         names:Add("VertexColorTest")
-        //names:Add("LightsPunctualLamp")
+        names:Add("LightsPunctualLamp")
         names:Add("NormalTangentTest")
         names:Add("UnlitTest")
         number spacing = 8
