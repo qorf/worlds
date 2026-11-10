@@ -1,0 +1,20 @@
+{
+    "Format": "Quorum Foliage List", 
+    "Version": 1, 
+    "Name": "Terrain1", 
+    "Assets": [{
+        
+            "Name": "RockA", 
+            "Model": "../../Models/Foliage/RockA.glb", 
+            "Height Offset": 0.0, 
+            "Scale": 0.4, 
+            "Random Scale": 0.2, 
+            "Random Turn": true, 
+            "Shade Variation": 0.1, 
+            "Minimum Slope": 0.0, 
+            "Maximum Slope": 45.0, 
+            "Density": 0.01, 
+            "Casts Shadows": true, 
+            "Draw Distance": 200.0
+        }]
+}

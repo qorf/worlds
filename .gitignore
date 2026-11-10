@@ -1,5 +1,12 @@
 # Compiled class file
 *.class
+Build/
+Run/
+.DS_Store
+snapshots/
+timings.json
+Scenes/FoliageCheck/
+QuincyWorld/Scenes/FoliageCheck/
 
 # Log file
 *.log

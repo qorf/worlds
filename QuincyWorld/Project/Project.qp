@@ -1,10 +1,14 @@
 {
-    "AndroidAssets" : "media",
+    "AndroidAssets" : "/media",
+    "AppIcon" : "",
+    "AppName" : "",
     "DevelopmentEnvironmentVersion" : "Quorum Studio 8.0.3",
     "ExecutableName" : "Default",
-    "IOSAssets" : "media",
+    "IOSAssets" : "/media",
     "IOS_BUNDLE" : "org.quorumlanguage",
     "IOS_DEVICE" : "iPhone 12",
+    "IOS_PROVISIONING" : "",
+    "IOS_SIGNATURE" : "",
     "ImageSheetBuildPath" : "resources",
     "ImageSheetEnabled" : false,
     "ImageSheetRebuildOnCompile" : false,
@@ -12,5 +16,6 @@
     "Project Version" : "1.0",
     "ProjectName" : "QuincyWorld",
     "ProjectType" : "JavaType",
+    "PythonSpikeProgramSlot" : "0",
     "iosVersion" : "15.0"
 }

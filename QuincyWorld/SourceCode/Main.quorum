@@ -10,8 +10,25 @@ use Libraries.Interface.Behaviors.Games.VehicleMovementBehavior
 use Libraries.Interface.Events.KeyboardEvent
 use Libraries.Interface.Item3D
 use Libraries.Containers.Iterator
+use Libraries.Containers.Array
 use Libraries.Compute.Vector3
 use Libraries.System.File
+use Libraries.Game.Graphics.Worlds.FoliageList
+use Libraries.Game.Graphics.Worlds.FoliageAsset
+use Libraries.Game.Graphics.Worlds.TerrainFoliage
+use Libraries.Compute.Random
+use Libraries.Game.Graphics.Color
+use Libraries.Game.Graphics.Environment
+use Libraries.Game.Graphics.Models.Vulkan.EnvironmentVulkan
+use Libraries.Game.Graphics.Worlds.TerrainLake
+use Libraries.Game.Graphics.Timing.GraphicsTimingLog
+use Libraries.Interface.Controls.Charts.Chart
+use Libraries.Interface.Layouts.ManualLayout
+use Libraries.Interface.Layouts.LayoutProperties
+use Libraries.Game.Layer2D
+use Libraries.Game.Graphics.Camera
+use Libraries.Game.Graphics.Label
+use Libraries.Game.Graphics.Timing.GraphicsTimingFrame
 
 /*
     QuincyWorld loads its scene, made in Quorum Studio, and drives a car
@@ -22,6 +39,27 @@ use Libraries.System.File
     The car is the smallest part of AllTerrainVehicle's DriveOpen: its toy
     car model (Car/ToyCarCentered.gltf), its four-wheel raycast vehicle, and
     the chase camera.
+
+    A row of Khronos's glTF sample models stands just ahead of the car
+    (Models/Samples, each with its license), to check how models and their
+    materials load and light (Terrain plan, Lighting L4). K runs a foliage
+    check (Terrain plan, Foliage F1) and writes what it found, then grows
+    the same foliage on the terrain, drawn (F2).
+
+    Test keys for the Terrain plan's lighting and water steps:
+    T switches the tone mapping (L2): none, Reinhard, ACES.
+    F turns distance fog on and off (W2).
+    O turns a sea on and off, just below the ground where the car starts (W5).
+    L turns a lake on and off, 30 units ahead of where the car starts (W5).
+
+    GPU timing (Graphics timing plan T5): the graphics card times each part
+    of every frame, such as the shadows and the lighting.
+    G shows or hides a pie chart of each part's average share of the GPU's
+    time in the bottom right corner, remade every 5 seconds.
+    P writes the timings kept so far to timings.json and prints a summary.
+    A label in the top left corner shows the frames per second, the time
+    between frames, and how much of each frame the GPU is busy (as a share,
+    and in milliseconds), each averaged over half a second.
 */
 class Main is Game
     Model chassis
@@ -50,9 +88,54 @@ class Main is Game
     number frictionSlip = 6
     number maximumSteering = 0.35
 
+    // Where the car starts, and how tall each sample model is made.
+    number startX = 0
+    number startZ = -50
+    number sampleHeight = 3
+
+    // True once the foliage check has run, so holding K runs it once.
+    boolean foliageChecked = false
+
+    // The test keys' last state, so holding a key acts once.
+    boolean tWasDown = false
+    boolean fWasDown = false
+    boolean oWasDown = false
+    boolean lWasDown = false
+    TerrainLake testLake = undefined
+
+    // GPU timing (Graphics timing plan T5): the log of frame timings, and
+    // the chart in the bottom right corner, remade every REFRESH_SECONDS.
+    // The chart is CHART_SHARE of the window's width and height, MARGIN
+    // pixels from the window's edges.
+    GraphicsTimingLog timings
+    Chart timingChart = undefined
+    boolean showingChart = false
+    number sinceRefresh = 0
+    constant number REFRESH_SECONDS = 5
+    constant number CHART_SHARE = 0.5
+    constant number MARGIN = 10
+    boolean gWasDown = false
+    boolean pWasDown = false
+
+    // The frame rate label in the top left corner, updated every
+    // RATE_SECONDS from the frames since its last update: how many, the
+    // time they took, and the GPU's time for those of them it timed.
+    Label rateLabel
+    // The label's black outline, in pixels, so it reads on sky or ground.
+    constant number RATE_OUTLINE = 2
+    constant number RATE_SECONDS = 0.5
+    constant integer RATE_FONT_SIZE = 28
+    integer rateFrames = 0
+    number rateSeconds = 0
+    number rateGPUTotal = 0
+    integer rateGPUFrames = 0
+    integer lastGPUFrame = -1
+
     action Main
         UseVulkan(true)
         SetMultisampling3D(4)
+        SetScreenSize(2500, 1500)
+        //SetScreenSize(1250, 750)
         StartGame()
     end
 
@@ -75,15 +158,470 @@ class Main is Game
         end
 
         BuildChassis()
+        // A streaming terrain loads only the regions near what it follows,
+        // here the car. Streaming starts on the terrain's first update, so
+        // it is started now, before the car is placed on the ground.
+        if terrain not= undefined and terrain:IsStreaming()
+            terrain:SetFollowItem(chassis)
+            terrain:Update(0)
+        end
         BuildVehicle()
         ResetVehicle()
         // The camera chases the car, placed after the physics each frame.
         GetCamera3D():Follow(chassis, 12, 5)
+        chassis:SetPosition(0,0,0)
+        PlaceSamples()
+        StartTiming()
+    end
+
+    /*
+        Turns on GPU timing (Graphics timing plan T5) and keeps the last 600
+        frames in the log. The 2D layer gets a ManualLayout, so the chart's
+        layout properties keep it in the top right corner, even as the
+        window changes size.
+    */
+    action StartTiming
+        // The scene's 2D camera is the editor's 800 by 600 preview, which
+        // would be stretched over the window. The chart is drawn one 2D
+        // pixel to one screen pixel instead, so its text stays sharp.
+        Layer2D layer2D = GetCurrentLayer2D()
+        integer width = GetScreenWidth()
+        integer height = GetScreenHeight()
+        layer2D:SetViewport(0, 0, width, height)
+        Camera camera2D = layer2D:GetCamera()
+        camera2D:SetSize(width, height)
+        camera2D:SetPosition(width / 2.0, height / 2.0, camera2D:GetPosition():GetZ())
+        if layer2D:GetLayout() = undefined
+            ManualLayout layout
+            layer2D:SetLayout(layout)
+        end
+        StartRateLabel()
+
+        SetGraphicsTiming(true)
+        if not GetGraphicsTimer():IsSupported()
+            output "GPU timing isn't supported here."
+            return now
+        end
+        timings:SetLimit(600)
+        timings:SetNote("scene", "QuincyWorld")
+        GetGraphicsTimer():SetLog(timings)
+        output "GPU timing is on. G shows a chart of it, and P writes it to timings.json."
+    end
+
+    /*
+        Puts the frame rate label in the top left corner, MARGIN pixels in
+        from the window's top left, in white with a black outline.
+    */
+    action StartRateLabel
+        Color white
+        white:SetColor(1, 1, 1, 1)
+        Color black
+        black:SetColor(0, 0, 0, 1)
+        rateLabel:SetFontSize(RATE_FONT_SIZE)
+        rateLabel:SetColor(white)
+        rateLabel:SetFontOutlineThickness(RATE_OUTLINE)
+        rateLabel:SetFontOutlineColor(black)
+        rateLabel:SetText("Measuring the frame rate...")
+        LayoutProperties properties = rateLabel:GetDefaultLayoutProperties()
+        properties:SetPercentageX(0)
+        properties:SetPercentageOriginX(0)
+        properties:SetPixelX(MARGIN)
+        properties:SetPercentageY(1)
+        properties:SetPercentageOriginY(1)
+        properties:SetPixelY(-MARGIN)
+        rateLabel:SetFocusable(false)
+        rateLabel:SetAcceptsMouseInput(false)
+        Add(rateLabel)
+    end
+
+    /*
+        Counts this frame for the frame rate label, and every RATE_SECONDS
+        shows the averages: frames per second and the time between frames,
+        from the game's own clock, and the GPU's time for a frame, from the
+        GPU timer. The GPU timer reads a frame a frame or two after it was
+        drawn, so each GPU frame is counted once, when it first appears.
+    */
+    action UpdateRateLabel(number seconds)
+        rateFrames = rateFrames + 1
+        rateSeconds = rateSeconds + seconds
+        GraphicsTimingFrame gpuFrame = GetGraphicsTimer():GetLatestFrame()
+        if gpuFrame not= undefined and gpuFrame:GetFrameNumber() not= lastGPUFrame
+            lastGPUFrame = gpuFrame:GetFrameNumber()
+            rateGPUTotal = rateGPUTotal + gpuFrame:GetTotal()
+            rateGPUFrames = rateGPUFrames + 1
+        end
+        if rateSeconds < RATE_SECONDS
+            return now
+        end
+        integer framesPerSecond = cast(integer, rateFrames / rateSeconds + 0.5)
+        number frameMilliseconds = cast(integer, rateSeconds / rateFrames * 10000 + 0.5) / 10.0
+        text message = framesPerSecond + " FPS, " + frameMilliseconds + " ms a frame"
+        // The GPU's share of each frame: its time for a frame divided by the
+        // time between frames. The rest of the frame it waits on the CPU or
+        // the display.
+        if rateGPUFrames > 0
+            number gpuAverage = rateGPUTotal / rateGPUFrames
+            number gpuMilliseconds = cast(integer, gpuAverage * 10 + 0.5) / 10.0
+            integer gpuPercent = cast(integer, gpuAverage / (rateSeconds / rateFrames * 1000) * 100 + 0.5)
+            message = message + ", GPU busy " + gpuPercent + "% (" + gpuMilliseconds + " ms)"
+        end
+        rateLabel:SetText(message)
+        rateFrames = 0
+        rateSeconds = 0
+        rateGPUTotal = 0
+        rateGPUFrames = 0
+    end
+
+    /*
+        Shows or hides the GPU timing chart.
+    */
+    action SwitchTimingChart
+        showingChart = not showingChart
+        if showingChart
+            RefreshTimingChart()
+        else
+            RemoveTimingChart()
+        end
+    end
+
+    /*
+        Replaces the chart in the bottom right corner with a pie chart of
+        each part's average GPU time over the kept frames. Charts aren't
+        redrawn in place, so the old one is taken out and a new one added.
+        The log's GetBarChart(10) could be used instead, to show the last
+        10 frames.
+    */
+    action RefreshTimingChart
+        sinceRefresh = 0
+        if timings:GetFrameCount() = 0
+            return now
+        end
+        RemoveTimingChart()
+        timingChart = timings:GetPieChart()
+        // The layer's ManualLayout reads these: the chart's size, a share of
+        // the window's, and its bottom right corner MARGIN pixels in from the
+        // window's bottom right. The 2D layer's origin is the bottom left.
+        LayoutProperties properties = timingChart:GetDefaultLayoutProperties()
+        properties:SetPercentageWidth(CHART_SHARE)
+        properties:SetPixelWidth(0)
+        properties:SetPercentageHeight(CHART_SHARE)
+        properties:SetPixelHeight(0)
+        properties:SetPercentageX(1)
+        properties:SetPercentageOriginX(1)
+        properties:SetPixelX(-MARGIN)
+        properties:SetPercentageY(0)
+        properties:SetPercentageOriginY(0)
+        properties:SetPixelY(MARGIN)
+        // A display only: the game keeps the keys and the mouse.
+        timingChart:SetFocusable(false)
+        timingChart:SetAcceptsMouseInput(false)
+        Add(timingChart)
+    end
+
+    /*
+        Takes the GPU timing chart off the screen and frees it.
+    */
+    action RemoveTimingChart
+        if timingChart = undefined
+            return now
+        end
+        Remove(timingChart)
+        timingChart:Dispose()
+        timingChart = undefined
+    end
+
+    /*
+        Writes the GPU timings kept so far to timings.json, and prints the
+        average time and share of the frame of each part.
+    */
+    action WriteTimings
+        if timings:GetFrameCount() = 0
+            output "No GPU timings yet."
+            return now
+        end
+        File file
+        file:SetPath("timings.json")
+        timings:Write(file)
+        output "Wrote " + timings:GetFrameCount() + " frames of GPU timings to timings.json."
+        Array<text> names = timings:GetPhaseNames()
+        integer i = 0
+        repeat while i < names:GetSize()
+            text name = names:Get(i)
+            output "  " + name + ": " + timings:GetAverage(name) + " ms on average, " + cast(integer, timings:GetShare(name) * 100) + "% of the frame."
+            i = i + 1
+        end
+    end
+
+    /*
+        Stands the sample models in a row across the car's path, 15 units
+        ahead of where it starts, each made sampleHeight tall and set on the
+        ground. Each is named, so it can be described.
+    */
+    action PlaceSamples
+        Array<text> names
+        names:Add("DamagedHelmet")
+        names:Add("Lantern")
+        names:Add("BoomBox")
+        names:Add("EmissiveStrengthTest")
+        names:Add("CompareBaseColor")
+        names:Add("MetalRoughSpheres")
+        names:Add("AlphaBlendModeTest")
+        names:Add("VertexColorTest")
+        //names:Add("LightsPunctualLamp")
+        names:Add("NormalTangentTest")
+        names:Add("UnlitTest")
+        number spacing = 8
+        number firstX = startX - (names:GetSize() - 1) * spacing / 2
+        number z = startZ + 15
+        integer i = 0
+        repeat while i < names:GetSize()
+            text name = names:Get(i)
+            number x = firstX + i * spacing
+            check
+                Model sample
+                sample:Load("Models/Samples/" + name + "/" + name + ".glb")
+                number tallest = sample:GetHeight()
+                if sample:GetWidth() > tallest
+                    tallest = sample:GetWidth()
+                end
+                if tallest > 0
+                    number scale = sampleHeight / tallest
+                    sample:SetScale(scale, scale, scale)
+                end
+                sample:SetPosition(x, GetGroundHeight(x, z) + sampleHeight / 2, z)
+                sample:SetName(name)
+                Add(sample)
+            detect error
+                output "The sample " + name + " didn't load: " + error:GetErrorMessage()
+            end
+            i = i + 1
+        end
+    end
+
+    /*
+        Checks foliage data (Foliage F1) without drawing it: two assets,
+        300 copies scattered on the ground around the start, some removed,
+        then saved to Scenes/FoliageCheck, loaded back, and the counts
+        compared. Nothing is drawn yet; that is step F2.
+    */
+    action CheckFoliage
+        if terrain = undefined
+            output "Foliage check: there is no terrain."
+            return now
+        end
+        FoliageList list
+        list:SetName("Foliage check")
+        FoliageAsset helmet
+        helmet:SetName("Helmet")
+        helmet:SetModelPath("../../Models/Samples/DamagedHelmet/DamagedHelmet.glb")
+        helmet:SetMaximumSlope(40)
+        helmet:SetDensity(0.02)
+        integer helmetNumber = list:AddAsset(helmet)
+        FoliageAsset tuft
+        tuft:SetName("Tuft")
+        tuft:SetCardPicturePath("Tuft.png")
+        tuft:SetCardPlanes(3)
+        tuft:SetDensity(1)
+        tuft:SetCastsShadows(false)
+        integer tuftNumber = list:AddAsset(tuft)
+
+        TerrainFoliage foliage
+        foliage:SetTerrainData(terrain:GetWorldTerrain():GetData())
+        Random random
+        random:SetSeed(7)
+        integer added = 0
+        integer tries = 0
+        repeat while tries < 300
+            number x = startX + (random:RandomNumber() * 2 - 1) * 60
+            number z = startZ + (random:RandomNumber() * 2 - 1) * 60
+            FoliageAsset settings = helmet
+            integer asset = helmetNumber
+            if tries mod 2 = 1
+                settings = tuft
+                asset = tuftNumber
+            end
+            if foliage:AddCopyOnGround(asset, settings, x, z, random)
+                added = added + 1
+            end
+            tries = tries + 1
+        end
+        integer removed = foliage:RemoveCopies(-1, startX, startZ, 10)
+
+        File folder
+        folder:SetPath("Scenes/FoliageCheck")
+        if not folder:Exists()
+            boolean made = folder:CreateDirectories()
+        end
+        foliage:Save(folder)
+        File listFile
+        listFile:SetPath("Scenes/FoliageCheck/List.json")
+        list:Save(listFile)
+
+        TerrainFoliage loaded
+        loaded:SetTerrainData(terrain:GetWorldTerrain():GetData())
+        loaded:Load(folder)
+        FoliageList loadedList
+        loadedList:Load(listFile)
+
+        output "Foliage check: " + added + " of 300 copies placed (the rest were off the ground or too steep), " + removed + " removed near the start, " + foliage:GetCopyCount() + " kept in " + foliage:GetCellCount() + " cells of " + foliage:GetCellSize() + " units."
+        output "Foliage check: loaded back " + loaded:GetCopyCount() + " copies (" + loaded:GetCopyCount(helmetNumber) + " helmets, " + loaded:GetCopyCount(tuftNumber) + " tufts) and " + loadedList:GetAssetCount() + " assets."
+        if loaded:GetCopyCount() = foliage:GetCopyCount() and loadedList:GetAssetCount() = list:GetAssetCount()
+            output "Foliage check: passed."
+        else
+            output "Foliage check: FAILED, the counts differ."
+        end
+
+        // Step F2: the same copies grown on the terrain itself, and drawn.
+        // They aren't saved, since the game never saves the terrain.
+        TerrainFoliage grown = terrain:GetTerrainFoliage()
+        Random again
+        again:SetSeed(7)
+        tries = 0
+        repeat while tries < 300
+            number growX = startX + (again:RandomNumber() * 2 - 1) * 60
+            number growZ = startZ + (again:RandomNumber() * 2 - 1) * 60
+            FoliageAsset growSettings = helmet
+            integer growAsset = helmetNumber
+            if tries mod 2 = 1
+                growSettings = tuft
+                growAsset = tuftNumber
+            end
+            boolean grew = grown:AddCopyOnGround(growAsset, growSettings, growX, growZ, again)
+            tries = tries + 1
+        end
+        integer cleared = grown:RemoveCopies(-1, startX, startZ, 10)
+        terrain:SetFoliageList(loadedList)
+        output "Foliage check: " + grown:GetCopyCount() + " copies now grow on the terrain. Helmets stand in for trees; the tufts have no picture yet, so they don't show."
+    end
+
+    /*
+        Switches the tone mapping (Lighting plan L2): none, Reinhard, then
+        ACES, and back.
+    */
+    action SwitchToneMapping
+        Environment environment = GetCurrentLayer3D():GetEnvironment()
+        if not (environment is EnvironmentVulkan)
+            return now
+        end
+        EnvironmentVulkan vulkan = cast(EnvironmentVulkan, environment)
+        integer mode = vulkan:GetToneMapping() + 1
+        if mode > vulkan:TONE_MAPPING_ACES
+            mode = vulkan:TONE_MAPPING_NONE
+        end
+        vulkan:SetToneMapping(mode)
+        if mode = vulkan:TONE_MAPPING_NONE
+            output "Tone mapping: none (bright light clips to white)."
+        elseif mode = vulkan:TONE_MAPPING_REINHARD
+            output "Tone mapping: Reinhard."
+        else
+            output "Tone mapping: ACES."
+        end
+    end
+
+    /*
+        Turns distance fog on and off (Water plan W2), a pale haze from 60
+        to 260 units.
+    */
+    action SwitchFog
+        Environment environment = GetCurrentLayer3D():GetEnvironment()
+        if not (environment is EnvironmentVulkan)
+            return now
+        end
+        EnvironmentVulkan vulkan = cast(EnvironmentVulkan, environment)
+        if vulkan:HasFog()
+            vulkan:RemoveFog()
+            output "Fog: off."
+        else
+            Color haze
+            haze:SetColor(0.78, 0.86, 0.94, 1)
+            vulkan:SetFog(haze, 60, 260)
+            vulkan:SetFogAmount(0.85)
+            output "Fog: on, from 60 to 260 units."
+        end
+    end
+
+    /*
+        Turns a sea on and off (Water plan W5), one unit below the ground
+        where the car starts, so the low ground floods.
+    */
+    action SwitchSea
+        if terrain = undefined
+            return now
+        end
+        if terrain:GetWater():HasSea()
+            terrain:RemoveSea()
+            output "Sea: off."
+        else
+            number level = GetGroundHeight(startX, startZ) - 1
+            terrain:SetSeaLevel(level)
+            output "Sea: on, at height " + level + "."
+        end
+    end
+
+    /*
+        Turns a 40 by 40 lake on and off (Water plan W5), 30 units ahead of
+        where the car starts, one unit above the ground there.
+    */
+    action SwitchLake
+        if terrain = undefined
+            return now
+        end
+        if testLake not= undefined
+            boolean removed = terrain:GetWater():RemoveLake(testLake)
+            testLake = undefined
+            output "Lake: off."
+        else
+            number lakeZ = startZ + 30
+            number level = GetGroundHeight(startX, lakeZ) + 1
+            testLake = terrain:AddLake(startX, lakeZ, 40, 40, level)
+            output "Lake: on, at height " + level + ". The ground hides it wherever it is higher."
+        end
     end
 
     action Update(number seconds)
         if monitor:IsKeyPressed(keys:R)
             ResetVehicle()
+        end
+        if monitor:IsKeyPressed(keys:K) and not foliageChecked
+            foliageChecked = true
+            CheckFoliage()
+        end
+        boolean tDown = monitor:IsKeyPressed(keys:T)
+        if tDown and not tWasDown
+            SwitchToneMapping()
+        end
+        tWasDown = tDown
+        boolean fDown = monitor:IsKeyPressed(keys:F)
+        if fDown and not fWasDown
+            SwitchFog()
+        end
+        fWasDown = fDown
+        boolean oDown = monitor:IsKeyPressed(keys:O)
+        if oDown and not oWasDown
+            SwitchSea()
+        end
+        oWasDown = oDown
+        boolean lDown = monitor:IsKeyPressed(keys:L)
+        if lDown and not lWasDown
+            SwitchLake()
+        end
+        lWasDown = lDown
+        boolean gDown = monitor:IsKeyPressed(keys:G)
+        if gDown and not gWasDown
+            SwitchTimingChart()
+        end
+        gWasDown = gDown
+        boolean pDown = monitor:IsKeyPressed(keys:P)
+        if pDown and not pWasDown
+            WriteTimings()
+        end
+        pWasDown = pDown
+        UpdateRateLabel(seconds)
+        if showingChart
+            sinceRefresh = sinceRefresh + seconds
+            if sinceRefresh >= REFRESH_SECONDS
+                RefreshTimingChart()
+            end
         end
         // Driving off the edge drops the car into nothing, so it is put back.
         if chassis:GetY() < GetGroundHeight(0, 0) - fallLimit
@@ -184,7 +722,9 @@ class Main is Game
     action ResetVehicle
         Vector3 stop
         chassis:SetYawPitchRoll(0, 0, 0)
-        chassis:SetPosition(0, GetGroundHeight(0, 0) + dropHeight, 0)
+        number x = startX
+        number z = startZ
+        chassis:SetPosition(x, GetGroundHeight(x, z) + dropHeight, z)
         chassis:SetLinearVelocity(stop)
         chassis:SetAngularVelocity(stop)
         chassis:Simulate(true)
