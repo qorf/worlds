@@ -16,5 +16,21 @@
             "Density": 0.01, 
             "Casts Shadows": true, 
             "Draw Distance": 200.0
+        }, {
+        
+            "Name": "Grass", 
+            "Card Picture": "Grass.png", 
+            "Card Planes": 2, 
+            "Height Offset": 0.0, 
+            "Scale": 1.0, 
+            "Random Scale": 0.2, 
+            "Random Turn": true, 
+            "Shade Variation": 0.1, 
+            "Minimum Slope": 0.0, 
+            "Maximum Slope": 90.0, 
+            "Density": 0.05, 
+            "Casts Shadows": false, 
+            "Draw Distance": 200.0, 
+            "Wind": 0.7
         }]
 }
