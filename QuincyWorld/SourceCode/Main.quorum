@@ -1,19 +1,13 @@
 use Libraries.Game.Game
 use Libraries.Game.Scenes.Scene
+use Libraries.Game.Scenes.SceneController
 use Libraries.Game.InputMonitor
 use Libraries.Game.Graphics.Model
 use Libraries.Game.Graphics.Worlds.TerrainItem
-use Libraries.Game.Physics.Vehicles.Vehicle
-use Libraries.Game.Physics.Vehicles.Suspension
-use Libraries.Game.Collision.Shapes.Box
-use Libraries.Interface.Behaviors.Games.VehicleMovementBehavior
 use Libraries.Interface.Events.KeyboardEvent
 use Libraries.Interface.Item3D
 use Libraries.Containers.Iterator
 use Libraries.Containers.Array
-use Libraries.Compute.Vector3
-use Libraries.Compute.Matrix4
-use Libraries.Compute.Quaternion
 use Libraries.System.File
 use Libraries.Game.Graphics.Worlds.FoliageList
 use Libraries.Game.Graphics.Worlds.FoliageAsset
@@ -37,13 +31,13 @@ use Libraries.Game.Graphics.Timing.GraphicsTimingFrame
 
 /*
     QuincyWorld loads its scene, made in Quorum Studio, and drives a car
-    over the scene's terrain (Quorum Studio plan, step 13). The arrow keys
-    drive, Space brakes, and R puts the car back in the middle. The camera
+    over the scene's terrain (Quorum Studio plan, step 13). W, S, A and D
+    drive, Space brakes, and R puts the car back at the start. The camera
     follows the car.
 
-    The car is the smallest part of AllTerrainVehicle's DriveOpen: its toy
-    car model (Car/ToyCarCentered.gltf), its four-wheel raycast vehicle, and
-    the chase camera.
+    The car is the toy car model (Car/ToyCarCentered.gltf) placed in the
+    scene and named Car, with a Vehicle controller set in Quorum Studio: its
+    physics, wheels, driving and the camera that follows it.
 
     A row of Khronos's glTF sample models stands just ahead of the car
     (Models/Samples, each with its license), to check how models and their
@@ -86,37 +80,17 @@ use Libraries.Game.Graphics.Timing.GraphicsTimingFrame
     and in milliseconds), each averaged over half a second.
 */
 class Main is Game
-    // The car's physics body, which the vehicle drives along its own +Z; it
-    // isn't drawn. The car's model is drawn in its place, turned around,
-    // since the model's nose points to -Z (PlaceCarBody).
-    Item3D chassis
-    Model carBody
-    // The half turn the model is drawn with, on top of the body's rotation.
-    Quaternion halfTurn
-    Vehicle vehicle
-    VehicleMovementBehavior movement
+    // The car: the scene's model named Car, with the Vehicle controller set
+    // in Quorum Studio. The scene builds it; chassis is the physics body it
+    // rides on, which the camera follows.
+    SceneController car = undefined
+    Item3D chassis = undefined
     TerrainItem terrain = undefined
     InputMonitor monitor
     KeyboardEvent keys
 
-    // How far above the ground the car is dropped when it is placed, and how
-    // far below the ground it may fall before it is put back.
-    number dropHeight = 1.4
+    // How far below the ground the car may fall before it is put back.
     number fallLimit = 30
-
-    // Stability. A car tips when the sideways pull of its tires, acting at
-    // the height of its body, beats the weight held by its outer wheels.
-    // DriveOpen's car had its wheels 1.12 to each side; here they are 1.6
-    // out, a wider track, so the weight resists tipping about 40% harder.
-    // The rays are past the drawn wheels, which are part of the body, so
-    // the car looks the same. The tires' sideways push is applied at the
-    // body's center height (roll influence 0), so turning doesn't roll it,
-    // and they slide a little sooner (friction slip 6), so a hard turn
-    // skids rather than flips. Steering is a little gentler too.
-    number wheelSide = 1.6
-    number rollInfluence = 0
-    number frictionSlip = 6
-    number maximumSteering = 0.35
 
     // Where the car starts, and how tall each sample model is made.
     number startX = 0
@@ -207,29 +181,24 @@ class Main is Game
         file:SetPath("Scenes/Scene.qs")
         LoadScene(file)
 
-        EnablePhysics3D(true)
-        SetGravity3D(0, -9.8, 0)
+        // Physics and gravity come from the scene: its layer's Physics
+        // section in Quorum Studio.
 
         terrain = FindTerrain()
         if terrain = undefined
             output "The scene has no terrain to drive on."
         else
-            output "Driving on " + terrain:GetName() + ". The arrow keys drive, Space brakes and R puts the car back."
+            output "Driving on " + terrain:GetName() + ". W, S, A and D drive, Space brakes and R puts the car back."
         end
 
-        BuildChassis()
-        // A streaming terrain loads only the regions near what it follows,
-        // here the car. Streaming starts on the terrain's first update, so
-        // it is started now, before the car is placed on the ground.
-        if terrain not= undefined and terrain:IsStreaming()
-            terrain:SetFollowItem(chassis)
-            terrain:Update(0)
+        // The scene built the car, the camera following it and, for a
+        // streaming terrain, the terrain following it too.
+        car = GetSceneController("Car")
+        if car = undefined
+            output "The scene has no model named Car with a Vehicle controller. Give the car model that name and a Vehicle controller in Quorum Studio."
+        else
+            chassis = car:GetBody()
         end
-        BuildVehicle()
-        ResetVehicle()
-        // The camera chases the car, placed after the physics each frame.
-        GetCamera3D():Follow(chassis, 12, 5)
-        chassis:SetPosition(0,0,0)
         PlaceSamples()
         PlaceSpotlight()
         StartTiming()
@@ -704,8 +673,12 @@ class Main is Game
         FoliageAsset settings = list:GetAsset(grassAsset)
         TerrainFoliage foliage = terrain:GetTerrainFoliage()
         Random random
-        number centerX = chassis:GetX()
-        number centerZ = chassis:GetZ()
+        number centerX = startX
+        number centerZ = startZ
+        if chassis not= undefined
+            centerX = chassis:GetX()
+            centerZ = chassis:GetZ()
+        end
         integer grown = 0
         integer tries = 0
         repeat while tries < count
@@ -769,7 +742,13 @@ class Main is Game
             return now
         end
         TerrainFoliage foliage = terrain:GetTerrainFoliage()
-        integer removed = foliage:RemoveCopies(grassAsset, chassis:GetX(), chassis:GetZ(), 100000)
+        number centerX = startX
+        number centerZ = startZ
+        if chassis not= undefined
+            centerX = chassis:GetX()
+            centerZ = chassis:GetZ()
+        end
+        integer removed = foliage:RemoveCopies(grassAsset, centerX, centerZ, 100000)
         terrain:FoliageChanged()
         output "Grass test: removed " + removed + " grass cards."
     end
@@ -877,8 +856,8 @@ class Main is Game
     end
 
     action Update(number seconds)
-        if monitor:IsKeyPressed(keys:R)
-            ResetVehicle()
+        if monitor:IsKeyPressed(keys:R) and car not= undefined
+            car:Reset()
         end
         if monitor:IsKeyPressed(keys:K) and not foliageChecked
             foliageChecked = true
@@ -957,8 +936,8 @@ class Main is Game
             end
         end
         // Driving off the edge drops the car into nothing, so it is put back.
-        if chassis:GetY() < GetGroundHeight(0, 0) - fallLimit
-            ResetVehicle()
+        if chassis not= undefined and chassis:GetY() < GetGroundHeight(0, 0) - fallLimit
+            car:Reset()
         end
     end
 
@@ -984,118 +963,5 @@ class Main is Game
             return 0
         end
         return terrain:GetWorldTerrain():GetData():GetSurfaceHeight(x, z)
-    end
-
-    /*
-        Makes the car's body: the toy car model with a physics box. These
-        numbers come from DriveOpen, where they are explained.
-    */
-    action BuildChassis
-        chassis:SetScale(152, 152, 152)
-        chassis:SetDimensions(0.019, 0.0135, 0.0385)
-        Box shape
-        shape:Set(2.82, 1.2, 5.2)
-        chassis:SetShape(shape)
-        chassis:EnablePhysics(true)
-        chassis:SetResponsive()
-        chassis:SetMass(800)
-        chassis:SetFriction(0.6)
-        chassis:SetRestitution(0)
-        chassis:SetLinearDamping(0.05)
-        // A little more than DriveOpen's 0.8, so a tilt dies down before it
-        // grows into a roll.
-        chassis:SetAngularDamping(0.9)
-        chassis:SetName("Car")
-
-        Add(chassis)
-
-        // The model, drawn where the body is (PlaceCarBody). It isn't the
-        // body's child: every child of a physics body takes part in its
-        // physics, and this one has none.
-        carBody:Load("Car/ToyCarCentered.gltf")
-        carBody:SetScale(152, 152, 152)
-        carBody:SetName("Car Body")
-        halfTurn:SetEulerAngles(180, 0, 0)
-        Add(carBody)
-        PlaceCarBody()
-    end
-
-    /*
-        Puts the car's model on its physics body: at the body's place, turned
-        as the body is, plus a half turn, since the model's nose points to -Z
-        and the car drives along +Z.
-    */
-    action PlaceCarBody
-        Matrix4 turned = chassis:GetRotationTransform():Copy()
-        turned:Rotate(halfTurn)
-        carBody:SetRotationTransform(turned)
-        carBody:SetPosition(chassis:GetX(), chassis:GetY(), chassis:GetZ())
-    end
-
-    /*
-        After each physics step, the car's model follows its body.
-    */
-    action UpdateAfterPhysics(number seconds)
-        PlaceCarBody()
-    end
-
-    /*
-        Makes the vehicle: four wheels under the body, driven by the arrow
-        keys, all four driving.
-    */
-    action BuildVehicle
-        vehicle:SetChassis(chassis)
-        vehicle:Add(AddWheel(MakeVector(-wheelSide, -0.31, 2.06), true))
-        vehicle:Add(AddWheel(MakeVector(wheelSide, -0.31, 2.06), true))
-        vehicle:Add(AddWheel(MakeVector(-wheelSide, -0.31, -1.58), false))
-        vehicle:Add(AddWheel(MakeVector(wheelSide, -0.31, -1.58), false))
-        GetCurrentLayer3D():Add(vehicle)
-
-        movement:SetVehicle(vehicle)
-        movement:SetEngineForce(5000)
-        movement:SetReverseForce(3000)
-        movement:SetMaximumSteering(maximumSteering)
-        chassis:AddBehavior(movement)
-    end
-
-    /*
-        Makes one wheel: a ray under the body, with a spring.
-    */
-    action AddWheel(Vector3 connection, boolean frontWheel) returns Suspension
-        Suspension wheel
-        wheel:SetConnectionPoint(connection)
-        wheel:SetDirection(MakeVector(0, -1, 0))
-        wheel:SetAxle(MakeVector(1, 0, 0))
-        wheel:SetRestLength(0.4)
-        wheel:SetRadius(0.4)
-        wheel:SetSteeringEnabled(frontWheel)
-        wheel:SetSuspensionStiffness(20)
-        wheel:SetDampingCompression(2.5)
-        wheel:SetDampingRelaxation(2.0)
-        wheel:SetFrictionSlip(frictionSlip)
-        wheel:SetRollInfluence(rollInfluence)
-        return wheel
-    end
-
-    /*
-        Puts the car upright in the middle of the terrain, a little above the
-        ground, and stops it.
-    */
-    action ResetVehicle
-        Vector3 stop
-        chassis:SetYawPitchRoll(0, 0, 0)
-        number x = startX
-        number z = startZ
-        chassis:SetPosition(x, GetGroundHeight(x, z) + dropHeight, z)
-        chassis:SetLinearVelocity(stop)
-        chassis:SetAngularVelocity(stop)
-        chassis:Simulate(true)
-        GetCamera3D():JumpToFollowPosition()
-    end
-
-    action MakeVector(number x, number y, number z) returns Vector3
-        Vector3 result
-        result:Set(x, y, z)
-        return result
     end
 end

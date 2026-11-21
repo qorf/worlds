@@ -8,20 +8,21 @@
                 "Class": "PerspectiveCamera", 
                 "Field of View": 67.0, 
                 "EDITOR_Field of View": 67.0, 
-                "Position": [505.9952087402344, 278.10394287109375, -454.30169677734375], 
-                "EDITOR_Position": [-9.548273216205104, 205.72977653150562, -42.673100352375386], 
-                "Direction": [-0.8504799008369446, -0.5213294625282288, 0.06999608129262924], 
-                "EDITOR_Direction": [-0.19654352962970734, -0.8089760541915894, -0.5540111660957336], 
-                "Up": [-0.5195727944374084, 0.8533554673194885, 0.04276181012392044], 
-                "EDITOR_Up": [-0.27047938108444214, 0.5878415703773499, -0.7624192833900452], 
-                "Size": [1141.0, 771.38], 
+                "Position": [-9.068897247314453, 49.3902702331543, 83.4326400756836], 
+                "EDITOR_Position": [-0.23946638405323029, 45.48284912109375, 71.63621520996094], 
+                "Direction": [0.0, -0.38461539149284363, -0.9230769276618958], 
+                "EDITOR_Direction": [-0.9921709895133972, -0.12277389317750931, -0.022876037284731865], 
+                "Up": [0.0, 0.9230769276618958, -0.38461539149284363], 
+                "EDITOR_Up": [-0.12274127453565598, 0.9924346804618835, -0.002829990116879344], 
+                "Size": [1379.0, 770.68], 
                 "Far": 1000.0, 
                 "EDITOR_Far": 1000.0, 
                 "Near": 1.0, 
                 "EDITOR_Near": 1.0
             }, 
             "Physics": {
-                "Enabled": false
+                "Enabled": true, 
+                "Gravity": [0.0, -9.8, 0.0]
             }, 
             "Items": {
                 "0": {
@@ -52,6 +53,72 @@
                 }, 
                 "2": {
                     "Class": "Model", 
+                    "Name": "Car", 
+                    "Description": "", 
+                    "Position": [-9.068897247314453, 44.49639129638672, 71.43260192871094], 
+                    "Size": [0.018707528710365295, 0.011624200269579887, 0.038379423320293427], 
+                    "Scale": [148.32000732421875, 148.32000732421875, 148.32000732421875], 
+                    "Rotation": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0], 
+                    "Type": 0, 
+                    "Color": [1.0, 1.0, 1.0, 1.0], 
+                    "File": "Car/ToyCarCentered.gltf", 
+                    "Physics Enabled": true, 
+                    "Responsiveness": 2, 
+                    "Mass": 1.0, 
+                    "Controller": {
+                        "Type": "Vehicle", 
+                        "Model": {
+                            "Faces": "-Z", 
+                            "Offset X": -6.906688554408902E-8, 
+                            "Offset Y": 0.10611964656668249, 
+                            "Offset Z": 3.536224539857358E-5
+                        }, 
+                        "Body": {
+                            "Mass": 800.0, 
+                            "Box Width": 2.5, 
+                            "Box Height": 0.52, 
+                            "Box Length": 5.2, 
+                            "Friction": 0.6, 
+                            "Linear Damping": 0.05, 
+                            "Angular Damping": 0.3
+                        }, 
+                        "Wheels": {
+                            "Drive": "Front", 
+                            "Front Axle": 1.94, 
+                            "Rear Axle": -1.94, 
+                            "Side": 1.32, 
+                            "Height": -0.17, 
+                            "Radius": 0.34
+                        }, 
+                        "Suspension": {
+                            "Rest Length": 0.6, 
+                            "Stiffness": 10.0, 
+                            "Damping Compression": 1.8, 
+                            "Damping Relaxation": 1.4, 
+                            "Friction Slip": 3.0, 
+                            "Roll Influence": 0.0, 
+                            "Max Travel": 5.0, 
+                            "Max Force": 6000.0
+                        }, 
+                        "Driving": {
+                            "Engine Force": 4400.0, 
+                            "Reverse Force": 2100.0, 
+                            "Brake Force": 4300.0, 
+                            "Max Steering": 0.35, 
+                            "Steering Speed": 3.0, 
+                            "Throttle Speed": 2.0
+                        }, 
+                        "Camera": {
+                            "Follows": true, 
+                            "Behind": 12.0, 
+                            "Above": 5.0, 
+                            "Smoothing": 0.0, 
+                            "Angle": 0.0
+                        }
+                    }
+                }, 
+                "3": {
+                    "Class": "Model", 
                     "Name": "Chimney", 
                     "Description": "", 
                     "Position": [-39.0, 29.23124885559082, -53.0], 
@@ -62,7 +129,7 @@
                     "File": "Resources/Tilesets3D/spacekit_2/Models/OBJ format/chimney.obj", 
                     "Physics Enabled": false
                 }, 
-                "3": {
+                "4": {
                     "Class": "Model", 
                     "Name": "Floor 1", 
                     "Description": "", 
@@ -75,7 +142,7 @@
                     "File": "Resources/Tilesets3D/retro-medieval-kit-1.0/Models/OBJ format/floor.obj", 
                     "Physics Enabled": false
                 }, 
-                "4": {
+                "5": {
                     "Class": "Model", 
                     "Name": "Floor 2", 
                     "Description": "", 
@@ -88,7 +155,7 @@
                     "File": "Resources/Tilesets3D/retro-medieval-kit-1.0/Models/OBJ format/floor.obj", 
                     "Physics Enabled": false
                 }, 
-                "5": {
+                "6": {
                     "Class": "Model", 
                     "Name": "Floor 3", 
                     "Description": "", 
@@ -101,7 +168,7 @@
                     "File": "Resources/Tilesets3D/retro-medieval-kit-1.0/Models/OBJ format/floor.obj", 
                     "Physics Enabled": false
                 }, 
-                "6": {
+                "7": {
                     "Class": "Model", 
                     "Name": "Floor 4", 
                     "Description": "", 
@@ -114,7 +181,7 @@
                     "File": "Resources/Tilesets3D/retro-medieval-kit-1.0/Models/OBJ format/floor.obj", 
                     "Physics Enabled": false
                 }, 
-                "7": {
+                "8": {
                     "Class": "Model", 
                     "Name": "Floor 5", 
                     "Description": "", 
@@ -127,7 +194,7 @@
                     "File": "Resources/Tilesets3D/retro-medieval-kit-1.0/Models/OBJ format/floor.obj", 
                     "Physics Enabled": false
                 }, 
-                "8": {
+                "9": {
                     "Class": "Model", 
                     "Name": "Floor", 
                     "Description": "", 
@@ -140,24 +207,12 @@
                     "File": "Resources/Tilesets3D/retro-medieval-kit-1.0/Models/OBJ format/floor.obj", 
                     "Physics Enabled": false
                 }, 
-                "9": {
-                    "Class": "Model", 
-                    "Name": "Sphere", 
-                    "Description": "", 
-                    "Position": [14.0, 10.705357551574707, -77.0], 
-                    "Size": [0.8708675503730774, 1.0, 0.9332026243209839], 
-                    "Scale": [1.0, 1.0, 1.0], 
-                    "Rotation": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0], 
-                    "Type": 3, 
-                    "Color": [1.0, 1.0, 1.0, 1.0], 
-                    "Physics Enabled": false
-                }, 
                 "10": {
                     "Class": "Model", 
                     "Name": "Sphere", 
                     "Description": "", 
-                    "Position": [32.872962951660156, 10.929386138916016, -74.5473861694336], 
-                    "Size": [0.8640140295028687, 1.0, 0.9295232892036438], 
+                    "Position": [14.0, 10.705357551574707, -77.0], 
+                    "Size": [0.8437753915786743, 1.0, 0.9185722470283508], 
                     "Scale": [1.0, 1.0, 1.0], 
                     "Rotation": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0], 
                     "Type": 3, 
@@ -168,8 +223,8 @@
                     "Class": "Model", 
                     "Name": "Sphere", 
                     "Description": "", 
-                    "Position": [37.0, 24.87006187438965, 94.0], 
-                    "Size": [0.8572144210338593, 1.0, 0.9258584976196289], 
+                    "Position": [32.872962951660156, 10.929386138916016, -74.5473861694336], 
+                    "Size": [0.8371350765228271, 1.0, 0.9149506688117981], 
                     "Scale": [1.0, 1.0, 1.0], 
                     "Rotation": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0], 
                     "Type": 3, 
@@ -177,6 +232,18 @@
                     "Physics Enabled": false
                 }, 
                 "12": {
+                    "Class": "Model", 
+                    "Name": "Sphere", 
+                    "Description": "", 
+                    "Position": [37.0, 24.87006187438965, 94.0], 
+                    "Size": [0.8305470049381256, 1.0, 0.9113433361053467], 
+                    "Scale": [1.0, 1.0, 1.0], 
+                    "Rotation": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0], 
+                    "Type": 3, 
+                    "Color": [1.0, 1.0, 1.0, 1.0], 
+                    "Physics Enabled": false
+                }, 
+                "13": {
                     "Class": "Model", 
                     "Name": "Stair Corner Outer", 
                     "Description": "", 
@@ -189,7 +256,7 @@
                     "File": "Resources/Tilesets3D/retro-medieval-kit-1.0/Models/OBJ format/floor_stairsCornerOuter.obj", 
                     "Physics Enabled": false
                 }, 
-                "13": {
+                "14": {
                     "Class": "Model", 
                     "Name": "Striped Chimney 1", 
                     "Description": "", 
@@ -201,7 +268,7 @@
                     "File": "Resources/Tilesets3D/spacekit_2/Models/OBJ format/chimney_detailed.obj", 
                     "Physics Enabled": false
                 }, 
-                "14": {
+                "15": {
                     "Class": "Model", 
                     "Name": "Striped Chimney 10", 
                     "Description": "", 
@@ -213,7 +280,7 @@
                     "File": "Resources/Tilesets3D/spacekit_2/Models/OBJ format/chimney_detailed.obj", 
                     "Physics Enabled": false
                 }, 
-                "15": {
+                "16": {
                     "Class": "Model", 
                     "Name": "Striped Chimney 11", 
                     "Description": "", 
@@ -225,7 +292,7 @@
                     "File": "Resources/Tilesets3D/spacekit_2/Models/OBJ format/chimney_detailed.obj", 
                     "Physics Enabled": false
                 }, 
-                "16": {
+                "17": {
                     "Class": "Model", 
                     "Name": "Striped Chimney 12", 
                     "Description": "", 
@@ -237,7 +304,7 @@
                     "File": "Resources/Tilesets3D/spacekit_2/Models/OBJ format/chimney_detailed.obj", 
                     "Physics Enabled": false
                 }, 
-                "17": {
+                "18": {
                     "Class": "Model", 
                     "Name": "Striped Chimney 2", 
                     "Description": "", 
@@ -249,7 +316,7 @@
                     "File": "Resources/Tilesets3D/spacekit_2/Models/OBJ format/chimney_detailed.obj", 
                     "Physics Enabled": false
                 }, 
-                "18": {
+                "19": {
                     "Class": "Model", 
                     "Name": "Striped Chimney 3", 
                     "Description": "", 
@@ -261,7 +328,7 @@
                     "File": "Resources/Tilesets3D/spacekit_2/Models/OBJ format/chimney_detailed.obj", 
                     "Physics Enabled": false
                 }, 
-                "19": {
+                "20": {
                     "Class": "Model", 
                     "Name": "Striped Chimney 4", 
                     "Description": "", 
@@ -273,7 +340,7 @@
                     "File": "Resources/Tilesets3D/spacekit_2/Models/OBJ format/chimney_detailed.obj", 
                     "Physics Enabled": false
                 }, 
-                "20": {
+                "21": {
                     "Class": "Model", 
                     "Name": "Striped Chimney 5", 
                     "Description": "", 
@@ -285,7 +352,7 @@
                     "File": "Resources/Tilesets3D/spacekit_2/Models/OBJ format/chimney_detailed.obj", 
                     "Physics Enabled": false
                 }, 
-                "21": {
+                "22": {
                     "Class": "Model", 
                     "Name": "Striped Chimney 6", 
                     "Description": "", 
@@ -297,7 +364,7 @@
                     "File": "Resources/Tilesets3D/spacekit_2/Models/OBJ format/chimney_detailed.obj", 
                     "Physics Enabled": false
                 }, 
-                "22": {
+                "23": {
                     "Class": "Model", 
                     "Name": "Striped Chimney 7", 
                     "Description": "", 
@@ -309,7 +376,7 @@
                     "File": "Resources/Tilesets3D/spacekit_2/Models/OBJ format/chimney_detailed.obj", 
                     "Physics Enabled": false
                 }, 
-                "23": {
+                "24": {
                     "Class": "Model", 
                     "Name": "Striped Chimney 8", 
                     "Description": "", 
@@ -321,7 +388,7 @@
                     "File": "Resources/Tilesets3D/spacekit_2/Models/OBJ format/chimney_detailed.obj", 
                     "Physics Enabled": false
                 }, 
-                "24": {
+                "25": {
                     "Class": "Model", 
                     "Name": "Striped Chimney 9", 
                     "Description": "", 
@@ -333,7 +400,7 @@
                     "File": "Resources/Tilesets3D/spacekit_2/Models/OBJ format/chimney_detailed.obj", 
                     "Physics Enabled": false
                 }, 
-                "25": {
+                "26": {
                     "Class": "Model", 
                     "Name": "Striped Chimney", 
                     "Description": "", 
@@ -345,7 +412,7 @@
                     "File": "Resources/Tilesets3D/spacekit_2/Models/OBJ format/chimney_detailed.obj", 
                     "Physics Enabled": false
                 }, 
-                "26": {
+                "27": {
                     "Class": "Terrain", 
                     "Name": "Quincy World", 
                     "Description": "Ground for the scene, made of height map regions. It starts flat, 128 by 128 units.", 
@@ -386,11 +453,20 @@
                 "Near": 0.0
             }, 
             "Physics": {
-                "Enabled": false
+                "Enabled": false, 
+                "Gravity": [0.0, -9.800000190734863]
             }, 
             "Items": {
 
             }
+        }
+    }, 
+    "Custom Models": {
+        "0": {
+            "Name": "ToyCarCentered", 
+            "File": "Car/ToyCarCentered.gltf", 
+            "Scale": 52.0, 
+            "Description": "A model from Car/ToyCarCentered.gltf. It is 0.038 units long, so it starts 52.0 times larger. Change Scale in Properties."
         }
     }
 }
