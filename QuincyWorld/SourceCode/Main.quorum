@@ -12,6 +12,8 @@ use Libraries.Interface.Item3D
 use Libraries.Containers.Iterator
 use Libraries.Containers.Array
 use Libraries.Compute.Vector3
+use Libraries.Compute.Matrix4
+use Libraries.Compute.Quaternion
 use Libraries.System.File
 use Libraries.Game.Graphics.Worlds.FoliageList
 use Libraries.Game.Graphics.Worlds.FoliageAsset
@@ -53,6 +55,15 @@ use Libraries.Game.Graphics.Timing.GraphicsTimingFrame
     T switches the tone mapping (L2): none, Reinhard, ACES (the default).
     C switches linear lighting on (the default) and off, to compare
     (Linear lighting plan).
+
+    Grass test (Dense grass plan DG0): 1 grows 10,000 grass cards and 2
+    grows 50,000, in a square 160 units wide around the car, with wind; 0
+    removes them. Each prints how many grew. Compare the frame rate label
+    and the GPU timings (G, P) with none, 10,000 and 50,000. The grass is
+    never saved. I prints how many foliage cells are shown and how many
+    instances they draw; turning the camera changes it if culling by view
+    works (Dense grass plan DG1). N takes all foliage away, and back, so a
+    run can be compared with none of today's foliage drawing at all.
     F turns distance fog on and off (W2).
     O turns a sea on and off, just below the ground where the car starts (W5).
     L turns a lake on and off, 30 units ahead of where the car starts (W5).
@@ -68,13 +79,20 @@ use Libraries.Game.Graphics.Timing.GraphicsTimingFrame
     of every frame, such as the shadows and the lighting.
     G shows or hides a pie chart of each part's average share of the GPU's
     time in the bottom right corner, remade every 5 seconds.
-    P writes the timings kept so far to timings.json and prints a summary.
+    P writes the timings kept since the last P (or the start) to
+    timings.json, prints a summary, and starts recording afresh.
     A label in the top left corner shows the frames per second, the time
     between frames, and how much of each frame the GPU is busy (as a share,
     and in milliseconds), each averaged over half a second.
 */
 class Main is Game
-    Model chassis
+    // The car's physics body, which the vehicle drives along its own +Z; it
+    // isn't drawn. The car's model is drawn in its place, turned around,
+    // since the model's nose points to -Z (PlaceCarBody).
+    Item3D chassis
+    Model carBody
+    // The half turn the model is drawn with, on top of the body's rotation.
+    Quaternion halfTurn
     Vehicle vehicle
     VehicleMovementBehavior movement
     TerrainItem terrain = undefined
@@ -111,6 +129,21 @@ class Main is Game
     // The test keys' last state, so holding a key acts once.
     boolean tWasDown = false
     boolean cWasDown = false
+
+    // The grass test (Dense grass plan DG0): the test asset's place in the
+    // terrain's foliage list, or -1 before it is added, and the keys that
+    // grow 10,000 or 50,000 cards (1, 2) or remove them (0).
+    integer grassAsset = -1
+    boolean oneWasDown = false
+    boolean twoWasDown = false
+    boolean zeroWasDown = false
+    boolean iWasDown = false
+
+    // The foliage list while N has taken all foliage away, or undefined
+    // while foliage is drawn.
+    FoliageList hiddenFoliage = undefined
+    boolean nWasDown = false
+    constant number GRASS_REACH = 80
     boolean fWasDown = false
     boolean oWasDown = false
     boolean lWasDown = false
@@ -159,6 +192,10 @@ class Main is Game
         SetMultisampling3D(4)
         //SetScreenSize(2500, 1500)
         SetScreenSize(1250, 750)
+        // Draw at the display's refresh rate, not as fast as possible, so
+        // the Mac doesn't heat up and throttle itself (slow stretches with
+        // kernel_task busy).
+        SetVSync(true)
         StartGame()
     end
 
@@ -374,6 +411,11 @@ class Main is Game
             output "  " + name + ": " + timings:GetAverage(name) + " ms on average, " + cast(integer, timings:GetShare(name) * 100) + "% of the frame."
             i = i + 1
         end
+        // Start a fresh recording, so the next P covers only the frames
+        // after this one, and a change (a key) can be compared before and
+        // after (Dense grass plan DG0).
+        timings:Empty()
+        output "  (Recording again from now; the next P covers only the frames after this one.)"
     end
 
     /*
@@ -625,6 +667,114 @@ class Main is Game
     end
 
     /*
+        Grows grass cards around the car for the grass test (Dense grass
+        plan DG0): a "Test grass" asset is added to the terrain's foliage
+        list the first time (Scenes/Foliage/Grass.png, two crossed planes,
+        no shadows, drawn to 80 units, with wind), then copies are placed
+        at random in a square GRASS_REACH units each way from the car,
+        where the ground suits it. They are drawn, not saved.
+
+        Attribute: Parameter count How many copies to try to place.
+    */
+    action GrowTestGrass(integer count)
+        if terrain = undefined
+            output "Grass test: there is no terrain."
+            return now
+        end
+        FoliageList list = terrain:GetFoliageList()
+        if list = undefined
+            FoliageList made
+            made:SetName("Grass test")
+            terrain:SetFoliageList(made)
+            list = made
+        end
+        if grassAsset < 0 or grassAsset >= list:GetAssetCount()
+            FoliageAsset grass
+            grass:SetName("Test grass")
+            grass:SetCardPicturePath("Grass.png")
+            grass:SetCardPlanes(2)
+            grass:SetCastsShadows(false)
+            grass:SetDrawDistance(GRASS_REACH)
+            grass:SetMaximumSlope(40)
+            grass:SetBaseScale(0.8)
+            grass:SetRandomScale(0.3)
+            grass:SetWind(0.08)
+            grassAsset = list:AddAsset(grass)
+        end
+        FoliageAsset settings = list:GetAsset(grassAsset)
+        TerrainFoliage foliage = terrain:GetTerrainFoliage()
+        Random random
+        number centerX = chassis:GetX()
+        number centerZ = chassis:GetZ()
+        integer grown = 0
+        integer tries = 0
+        repeat while tries < count
+            number x = centerX + (random:RandomNumber() * 2 - 1) * GRASS_REACH
+            number z = centerZ + (random:RandomNumber() * 2 - 1) * GRASS_REACH
+            if foliage:AddCopyOnGround(grassAsset, settings, x, z, random)
+                grown = grown + 1
+            end
+            tries = tries + 1
+        end
+        terrain:FoliageChanged()
+        output "Grass test: " + grown + " of " + count + " grass cards grew (" + foliage:GetCopyCount(grassAsset) + " in all). Compare the frame rate and the timings (G, P)."
+    end
+
+    /*
+        Prints how much foliage is drawn now (Dense grass plan DG0 and
+        DG1): the cells shown of all, and the instances they draw, where a
+        card's planes count one each. Turn the camera and press again:
+        grass cells behind it should drop out.
+    */
+    action ReportFoliageDrawn
+        if terrain = undefined
+            output "Foliage: there is no terrain."
+            return now
+        end
+        output "Foliage: " + terrain:GetShownFoliageCellCount() + " of " + terrain:GetFoliageCellCount() + " cells shown, drawing " + terrain:GetDrawnFoliageCount() + " instances (a card's planes count one each), of " + terrain:GetTerrainFoliage():GetCopyCount() + " copies in all."
+    end
+
+    /*
+        Takes all foliage away, or brings it back (Dense grass plan DG0): the
+        terrain is given no foliage list, so every foliage cell and its
+        models are taken out and nothing of the foliage code runs while
+        it is away. The copies themselves are kept.
+    */
+    action SwitchFoliage
+        if terrain = undefined
+            output "Foliage: there is no terrain."
+            return now
+        end
+        if hiddenFoliage = undefined
+            hiddenFoliage = terrain:GetFoliageList()
+            if hiddenFoliage = undefined
+                output "Foliage: the terrain has none."
+                return now
+            end
+            terrain:SetFoliageList(undefined)
+            output "Foliage: off. Nothing of it is drawn now; N brings it back."
+        else
+            terrain:SetFoliageList(hiddenFoliage)
+            hiddenFoliage = undefined
+            output "Foliage: on."
+        end
+    end
+
+    /*
+        Removes every test grass copy (Dense grass plan DG0).
+    */
+    action RemoveTestGrass
+        if terrain = undefined or grassAsset < 0
+            output "Grass test: there is no test grass."
+            return now
+        end
+        TerrainFoliage foliage = terrain:GetTerrainFoliage()
+        integer removed = foliage:RemoveCopies(grassAsset, chassis:GetX(), chassis:GetZ(), 100000)
+        terrain:FoliageChanged()
+        output "Grass test: removed " + removed + " grass cards."
+    end
+
+    /*
         Switches the tone mapping (Lighting plan L2): none, Reinhard, then
         ACES, and back.
     */
@@ -744,6 +894,31 @@ class Main is Game
             SwitchLinearLighting()
         end
         cWasDown = cDown
+        boolean oneDown = monitor:IsKeyPressed(keys:NUM_1)
+        if oneDown and not oneWasDown
+            GrowTestGrass(10000)
+        end
+        oneWasDown = oneDown
+        boolean twoDown = monitor:IsKeyPressed(keys:NUM_2)
+        if twoDown and not twoWasDown
+            GrowTestGrass(50000)
+        end
+        twoWasDown = twoDown
+        boolean zeroDown = monitor:IsKeyPressed(keys:NUM_0)
+        if zeroDown and not zeroWasDown
+            RemoveTestGrass()
+        end
+        zeroWasDown = zeroDown
+        boolean iDown = monitor:IsKeyPressed(keys:I)
+        if iDown and not iWasDown
+            ReportFoliageDrawn()
+        end
+        iWasDown = iDown
+        boolean nDown = monitor:IsKeyPressed(keys:N)
+        if nDown and not nWasDown
+            SwitchFoliage()
+        end
+        nWasDown = nDown
         boolean fDown = monitor:IsKeyPressed(keys:F)
         if fDown and not fWasDown
             SwitchFog()
@@ -816,7 +991,6 @@ class Main is Game
         numbers come from DriveOpen, where they are explained.
     */
     action BuildChassis
-        chassis:Load("Car/ToyCarCentered.gltf")
         chassis:SetScale(152, 152, 152)
         chassis:SetDimensions(0.019, 0.0135, 0.0385)
         Box shape
@@ -832,7 +1006,37 @@ class Main is Game
         // grows into a roll.
         chassis:SetAngularDamping(0.9)
         chassis:SetName("Car")
+
         Add(chassis)
+
+        // The model, drawn where the body is (PlaceCarBody). It isn't the
+        // body's child: every child of a physics body takes part in its
+        // physics, and this one has none.
+        carBody:Load("Car/ToyCarCentered.gltf")
+        carBody:SetScale(152, 152, 152)
+        carBody:SetName("Car Body")
+        halfTurn:SetEulerAngles(180, 0, 0)
+        Add(carBody)
+        PlaceCarBody()
+    end
+
+    /*
+        Puts the car's model on its physics body: at the body's place, turned
+        as the body is, plus a half turn, since the model's nose points to -Z
+        and the car drives along +Z.
+    */
+    action PlaceCarBody
+        Matrix4 turned = chassis:GetRotationTransform():Copy()
+        turned:Rotate(halfTurn)
+        carBody:SetRotationTransform(turned)
+        carBody:SetPosition(chassis:GetX(), chassis:GetY(), chassis:GetZ())
+    end
+
+    /*
+        After each physics step, the car's model follows its body.
+    */
+    action UpdateAfterPhysics(number seconds)
+        PlaceCarBody()
     end
 
     /*

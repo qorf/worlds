@@ -20,7 +20,7 @@
         
             "Name": "Grass", 
             "Card Picture": "Grass.png", 
-            "Card Planes": 2, 
+            "Card Planes": 1, 
             "Height Offset": 0.0, 
             "Scale": 1.0, 
             "Random Scale": 0.2, 
@@ -28,9 +28,12 @@
             "Shade Variation": 0.1, 
             "Minimum Slope": 0.0, 
             "Maximum Slope": 90.0, 
-            "Density": 0.05, 
+            "Density": 0.4, 
             "Casts Shadows": false, 
             "Draw Distance": 200.0, 
-            "Wind": 0.7
+            "Wind": 0.7, 
+            "Align To Normal": true, 
+            "Random Tilt": 20.0, 
+            "Turn": 84.0
         }]
 }
